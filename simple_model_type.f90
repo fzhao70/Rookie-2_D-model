@@ -312,10 +312,8 @@ program simple_model
     implicit none
 
     ! Var Defination
-    !   PARAMETER
-    !   VAR
     integer :: i, j
-    real :: dx, dy, dt = 1
+    real :: dx = 1, dy = 1, dt = 1
     real :: f
 
     type(grid), target :: coor
@@ -327,6 +325,7 @@ program simple_model
     real, dimension(:), pointer :: lat
     real, dimension(:), pointer :: lon
 
+    ! pointer assignment
     Z => ele%Z
     u => ele%u
     v => ele%v
