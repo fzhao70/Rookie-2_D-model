@@ -197,28 +197,33 @@ module solver
 
     contains
 
-    subroutine Matsuno(u, v, Z, u_next, v_next, Z_next, lon, lat, nx, ny)
+    subroutine Matsuno(u, v, Z, u_next, v_next, Z_next, lon, lat, nx, ny, dt_in)
         implicit none
         integer, intent(in)  :: nx, ny
         integer :: i, j
-        real :: dt, f
+        real, intent(in) :: dt_in
+        real :: dt, f, lat_mean
         real, dimension(ny), intent(in) :: lat
         real, dimension(nx), intent(in) :: lon
-        real, dimension(ny, nx), intent(in)  :: Z, u, v 
-        real, dimension(ny, nx) :: u_next, v_next, Z_next 
+        real, dimension(ny, nx), intent(in)  :: Z, u, v
+        real, dimension(ny, nx) :: u_next, v_next, Z_next
         real, dimension(ny, nx) :: u_star, v_star, Z_star
         real, dimension(ny, nx) :: u_diff_x, u_diff_y, Z_diff_x, Z_diff_y, v_diff_x, v_diff_y
         real, dimension(ny, nx) :: u_star_diff_x, u_star_diff_y, Z_star_diff_x, Z_star_diff_y, v_star_diff_x, v_star_diff_y
 
-        u_diff_x = horizontal_diff(u, lon, lat, nx, ny, X_AXIS) 
-        u_diff_y = horizontal_diff(u, lon, lat, nx, ny, Y_AXIS) 
-        v_diff_x = horizontal_diff(v, lon, lat, nx, ny, X_AXIS) 
-        v_diff_y = horizontal_diff(v, lon, lat, nx, ny, Y_AXIS) 
-        Z_diff_x = horizontal_diff(Z, lon, lat, nx, ny, X_AXIS) 
-        Z_diff_y = horizontal_diff(Z, lon, lat, nx, ny, Y_AXIS) 
+        dt = dt_in
+        lat_mean = SUM(lat) / ny
+        f = 2 * omega * SIN(lat_mean)
 
-        u_star = u + dt * (-u *  u_diff_x - v * u_diff_y - g * Z_diff_x + f * v) 
-        v_star = v + dt * (-u *  v_diff_x - v * v_diff_y - g * Z_diff_x - f * u) 
+        u_diff_x = horizontal_diff(u, lon, lat, nx, ny, X_AXIS)
+        u_diff_y = horizontal_diff(u, lon, lat, nx, ny, Y_AXIS)
+        v_diff_x = horizontal_diff(v, lon, lat, nx, ny, X_AXIS)
+        v_diff_y = horizontal_diff(v, lon, lat, nx, ny, Y_AXIS)
+        Z_diff_x = horizontal_diff(Z, lon, lat, nx, ny, X_AXIS)
+        Z_diff_y = horizontal_diff(Z, lon, lat, nx, ny, Y_AXIS)
+
+        u_star = u + dt * (-u *  u_diff_x - v * u_diff_y - g * Z_diff_x + f * v)
+        v_star = v + dt * (-u *  v_diff_x - v * v_diff_y - g * Z_diff_y - f * u)
         Z_star = Z + dt * (-u *  Z_diff_x - v * Z_diff_y - H * (u_diff_x + v_diff_y))
 
         u_star_diff_x = horizontal_diff(u_star, lon, lat, nx, ny, X_AXIS)
@@ -228,53 +233,138 @@ module solver
         Z_star_diff_x = horizontal_diff(Z_star, lon, lat, nx, ny, X_AXIS)
         Z_star_diff_y = horizontal_diff(Z_star, lon, lat, nx, ny, Y_AXIS)
 
-        u_next = u + dt * (-u_star * u_star_diff_x - v * u_star_diff_y - g * Z_diff_x + f * v)
-        v_next = v + dt * (-u_star * v_star_diff_x - v * v_star_diff_y - g * Z_diff_x + f * v)
-        Z_next = Z + dt * (-u *  Z_star_diff_x - v * Z_star_diff_y - H * (u_diff_x + v_diff_y))
+        u_next = u + dt * (-u_star * u_star_diff_x - v_star * u_star_diff_y - g * Z_star_diff_x + f * v_star)
+        v_next = v + dt * (-u_star * v_star_diff_x - v_star * v_star_diff_y - g * Z_star_diff_y - f * u_star)
+        Z_next = Z + dt * (-u_star * Z_star_diff_x - v_star * Z_star_diff_y - H * (u_star_diff_x + v_star_diff_y))
 
         return
     end subroutine Matsuno
 
-    subroutine Leapfrog(u, v, Z, u_pre, v_pre, Z_pre, u_next, v_next, Z_next, lon, lat, nx, ny)
+    subroutine Leapfrog(u, v, Z, u_pre, v_pre, Z_pre, u_next, v_next, Z_next, lon, lat, nx, ny, dt_in)
         implicit none
         integer, intent(in)  :: nx, ny
         integer :: i, j
-        real :: dt, f
+        real, intent(in) :: dt_in
+        real :: dt, f, lat_mean
         real, dimension(ny), intent(in) :: lat
         real, dimension(nx), intent(in) :: lon
-        real, dimension(ny, nx), intent(in) :: Z, u, v 
+        real, dimension(ny, nx), intent(in) :: Z, u, v
         real, dimension(ny, nx), intent(in) :: u_pre, v_pre, Z_pre
-        real, dimension(ny, nx) :: u_next, v_next, Z_next 
+        real, dimension(ny, nx) :: u_next, v_next, Z_next
         real, dimension(ny, nx) :: u_diff_x, u_diff_y, Z_diff_x, Z_diff_y, v_diff_x, v_diff_y
 
-        u_diff_x = horizontal_diff(u, lon, lat, nx, ny, X_AXIS) 
-        u_diff_y = horizontal_diff(u, lon, lat, nx, ny, Y_AXIS) 
-        v_diff_x = horizontal_diff(v, lon, lat, nx, ny, X_AXIS) 
-        v_diff_y = horizontal_diff(v, lon, lat, nx, ny, Y_AXIS) 
-        Z_diff_x = horizontal_diff(Z, lon, lat, nx, ny, X_AXIS) 
-        Z_diff_y = horizontal_diff(Z, lon, lat, nx, ny, Y_AXIS) 
+        dt = dt_in
+        lat_mean = SUM(lat) / ny
+        f = 2 * omega * SIN(lat_mean)
+
+        u_diff_x = horizontal_diff(u, lon, lat, nx, ny, X_AXIS)
+        u_diff_y = horizontal_diff(u, lon, lat, nx, ny, Y_AXIS)
+        v_diff_x = horizontal_diff(v, lon, lat, nx, ny, X_AXIS)
+        v_diff_y = horizontal_diff(v, lon, lat, nx, ny, Y_AXIS)
+        Z_diff_x = horizontal_diff(Z, lon, lat, nx, ny, X_AXIS)
+        Z_diff_y = horizontal_diff(Z, lon, lat, nx, ny, Y_AXIS)
 
         u_next = u_pre + 2 * dt * (-u * u_diff_x - v * u_diff_y - g * Z_diff_x + f * v)
-        v_next = v_pre + 2 * dt * (-u * v_diff_x - v * v_diff_y - g * Z_diff_x - f * u)
+        v_next = v_pre + 2 * dt * (-u * v_diff_x - v * v_diff_y - g * Z_diff_y - f * u)
         Z_next = Z_pre + 2 * dt * (-u * Z_diff_x - v * Z_diff_y - H * (u_diff_x + v_diff_y))
 
         return
-    end subroutine 
+    end subroutine Leapfrog 
 
 end module solver
 
 module io
     use netcdf
-    use utils 
+    use utils
+    use type_def
     implicit none
 
     character (len = *), parameter :: IN_FILE_NAME = "hgt_location_selected.nc"
-    character (len = *), parameter :: OUT_FILE_NAME = "geo_wind.nc"
-    integer :: ncid, hgtid, lonid, latid, uid, vid
-    integer :: y_dimid, x_dimid
+    character (len = *), parameter :: OUT_FILE_NAME = "simple_model_output.nc"
+    integer :: ncid, hgtid, lonid, latid, uid, vid, zid
+    integer :: y_dimid, x_dimid, t_dimid
     integer(kind=1) :: ierr
 
     contains
+
+    subroutine read_input(lon, lat, hgt)
+    !
+    !>\ Author : Fanghe Zhao
+    !>\ Date : 10/2018
+    !>\ Details:
+    !>  Read input NetCDF file with geopotential height and coordinates
+    !
+        implicit none
+        real, dimension(ny), intent(out) :: lat
+        real, dimension(nx), intent(out) :: lon
+        real, dimension(ny, nx), intent(out) :: hgt
+
+        include 'netcdf.inc'
+
+        call message_display("Reading Input File")
+        ncid = 100
+        ierr = nf90_open(path = IN_FILE_NAME, mode = NF90_NOWRITE, ncid = ncid)
+        if (ierr /= NF90_NOERR) then
+            call message_display("Error opening input file")
+            stop
+        end if
+
+        ierr = nf_inq_varid(ncid, 'hgt', hgtid)
+        ierr = nf_inq_varid(ncid, 'lon', lonid)
+        ierr = nf_inq_varid(ncid, 'lat', latid)
+
+        ierr = nf_get_var_real(ncid, lonid, lon)
+        ierr = nf_get_var_real(ncid, latid, lat)
+        ierr = nf_get_var_real(ncid, hgtid, hgt)
+
+        ierr = nf_close(ncid)
+        call message_display("Input File Read")
+
+        return
+    end subroutine read_input
+
+    subroutine write_output(lon, lat, u, v, Z, time_step)
+    !
+    !>\ Author : Fanghe Zhao
+    !>\ Date : 10/2018
+    !>\ Details:
+    !>  Write output NetCDF file with model results
+    !
+        implicit none
+        integer, intent(in) :: time_step
+        integer, dimension(2) :: dimids
+        real, dimension(ny), intent(in) :: lat
+        real, dimension(nx), intent(in) :: lon
+        real, dimension(ny, nx), intent(in) :: u, v, Z
+
+        include 'netcdf.inc'
+
+        call message_display("Writing Output File")
+
+        ierr = nf90_create(OUT_FILE_NAME, NF90_CLOBBER, ncid)
+        ierr = nf90_def_dim(ncid, "lon", nx, x_dimid)
+        ierr = nf90_def_dim(ncid, "lat", ny, y_dimid)
+        dimids = (/ y_dimid, x_dimid /)
+
+        ierr = nf90_def_var(ncid, "u", NF90_FLOAT, dimids, uid)
+        ierr = nf90_def_var(ncid, "v", NF90_FLOAT, dimids, vid)
+        ierr = nf90_def_var(ncid, "Z", NF90_FLOAT, dimids, zid)
+        ierr = nf90_def_var(ncid, "lon", NF90_FLOAT, x_dimid, lonid)
+        ierr = nf90_def_var(ncid, "lat", NF90_FLOAT, y_dimid, latid)
+
+        ierr = nf90_enddef(ncid)
+
+        ierr = nf90_put_var(ncid, uid, u)
+        ierr = nf90_put_var(ncid, vid, v)
+        ierr = nf90_put_var(ncid, zid, Z)
+        ierr = nf90_put_var(ncid, lonid, lon)
+        ierr = nf90_put_var(ncid, latid, lat)
+
+        ierr = nf90_close(ncid)
+        call message_display("Output File Written")
+
+        return
+    end subroutine write_output
 
 end module io
 
@@ -302,9 +392,9 @@ program simple_model
     !>\ Author : Fanghe Zhao
     !>\ Date : 10/2018
     !>\ Details:
-    !>  This Program is for compute geostrophic wind use ECMWF data
+    !>  This Program is a simple 2D atmospheric model using shallow water equations
     !
-    use utils 
+    use utils
     use solver
     use io
     use type_def
@@ -313,8 +403,9 @@ program simple_model
 
     ! Var Defination
     integer :: i, j
-    real :: dx = 1, dy = 1, dt = 1
+    real :: dx = 1, dy = 1, dt = 100.0
     real :: f
+    real, dimension(ny, nx) :: hgt
 
     type(grid), target :: coor
     type(element), target :: ele_pre, ele, ele_next
@@ -338,17 +429,69 @@ program simple_model
     lon => coor%lon
     lat => coor%lat
 
+    ! Read input data
+    call read_input(lon, lat, hgt)
+
+    ! Initialize height field from geopotential height
+    Z = hgt
+
+    ! Initialize u and v from geostrophic balance
+    call message_display("Initializing winds")
+    do i = 1, nx
+        do j = 1, ny
+            f = 2 * omega * SIN(lat(j))
+            if (i .eq. 1 .and. j .eq. 1) then
+                dx = distance(lon(i), lat(j), lon(i + 1), lat(j))
+                dy = distance(lon(i), lat(j), lon(i), lat(j + 1))
+                u(j, i) = -1 * (g / f) * (hgt(j + 1, i) - hgt(j, i)) / dy
+                v(j, i) = (g / f) * (hgt(j, i + 1) - hgt(j, i)) / dx
+            else if (i .eq. nx .and. j .eq. ny) then
+                dx = distance(lon(i - 1), lat(j), lon(i), lat(j))
+                dy = distance(lon(i), lat(j - 1), lon(i), lat(j))
+                u(j, i) = -1 * (g / f) * (hgt(j, i) - hgt(j - 1, i)) / dy
+                v(j, i) = (g / f) * (hgt(j, i) - hgt(j, i - 1)) / dx
+            else if (i .eq. nx .and. j .eq. 1) then
+                dx = distance(lon(i - 1), lat(j), lon(i), lat(j))
+                dy = distance(lon(i), lat(j), lon(i), lat(j + 1))
+                u(j, i) = -1 * (g / f) * (hgt(j + 1, i) - hgt(j, i)) / dy
+                v(j, i) = (g / f) * (hgt(j, i) - hgt(j, i - 1)) / dx
+            else if (i .eq. 1 .and. j .eq. ny) then
+                dx = distance(lon(i), lat(j), lon(i + 1), lat(j))
+                dy = distance(lon(i), lat(j - 1), lon(i), lat(j))
+                u(j, i) = -1 * (g / f) * (hgt(j, i) - hgt(j - 1, i)) / dy
+                v(j, i) = (g / f) * (hgt(j, i + 1) - hgt(j, i)) / dx
+            else
+                dx = distance(lon(i - 1), lat(j), lon(i + 1), lat(j))
+                dy = distance(lon(i), lat(j - 1), lon(i), lat(j + 1))
+                u(j, i) = -1 * (g / f) * (hgt(j + 1, i) - hgt(j - 1, i)) / dy
+                v(j, i) = (g / f) * (hgt(j, i + 1) - hgt(j, i - 1)) / dx
+            end if
+        end do
+    end do
+
+    ! Time integration
+    call message_display("Starting time integration")
     do i = 1, nt
         if (i .eq. 1) then
-            call Matsuno(u, v, Z, u_next, v_next, Z_next, lon, lat, nx, ny)
-            !update_var
+            call Matsuno(u, v, Z, u_next, v_next, Z_next, lon, lat, nx, ny, dt)
+            ! Update variables
+            ele_pre = ele
             ele = ele_next
-        else 
-            call Leapfrog(u, v, Z, u_pre, v_pre, Z_pre, u_next, v_next, Z_next, lon, lat, nx, ny)
-            !update_var
+        else
+            call Leapfrog(u, v, Z, u_pre, v_pre, Z_pre, u_next, v_next, Z_next, lon, lat, nx, ny, dt)
+            ! Update variables
             ele_pre = ele
             ele = ele_next
         end if
+
+        ! Print progress every 100 time steps
+        if (MOD(i, 100) .eq. 0) then
+            write(6, *) "Time step:", i, "/", nt
+        end if
     end do
+    call message_display("Time integration complete")
+
+    ! Write output
+    call write_output(lon, lat, u, v, Z, nt)
 
 end program simple_model
